@@ -1,0 +1,370 @@
+//AccesoDatos
+public class AccesoDatos
+{
+    private string CadenaConexion = Properties.Resources.cadenaConexion;
+    private SqlConnection conexion;
+    private SqlCommand comando;
+    private SqlDataReader lector;
+    public AccesoDatos()
+    {
+        conexion = new SqlConnection(CadenaConexion);
+    }
+    private void Conectar()
+    {
+        conexion.Open();
+        comando = new SqlCommand();
+        comando.Connection = conexion;
+        comando.CommandType = CommandType.Text;
+    }
+    public void Desconectar()
+    {
+        conexion.Close();
+    }
+    public DataTable ConsultarTabla(string nombreTabla)
+    {
+        DataTable tabla = new DataTable();
+        this.Conectar();
+        comando.CommandText = "SELECT * FROM " + nombreTabla;
+        tabla.Load(comando.ExecuteReader());
+        this.Desconectar();
+        return tabla;
+    }
+    public DataTable ConsultarBD(string consultaSQL)
+    {
+        DataTable tabla = new DataTable();
+        this.Conectar();
+        comando.CommandText = consultaSQL;
+        tabla.Load(comando.ExecuteReader());
+        this.Desconectar();
+        return tabla;
+    }
+    public int ActualizarBD(string consultaSQL)
+    {
+        int filasAfectadas = 0;
+        this.Conectar();
+        comando.CommandText = consultaSQL;
+        filasAfectadas = comando.ExecuteNonQuery();
+        this.Desconectar();
+        return filasAfectadas;
+    }
+    public int ActualizarBD(string consultaSQL, List<Parametro> lista)
+    {
+        int filasAfectadas = 0;
+        this.Conectar();
+        comando.CommandText = consultaSQL;
+        foreach (Parametro p in lista)
+        {
+            comando.Parameters.AddWithValue(p.Nombre, p.Valor);
+        }
+        filasAfectadas = comando.ExecuteNonQuery();
+        this.Desconectar();
+        return filasAfectadas;
+    }
+
+}
+
+
+
+
+
+
+
+
+
+//Parametro
+public class Parametro
+{
+    private string nombre;
+    private object valor;
+    public string Nombre
+    {
+        get { return nombre; }
+        set { nombre = value; }
+    }
+    public object Valor
+    {
+        get { return valor; }
+        set { valor = value; }
+    }
+    public Parametro(string nombre, object valor)
+    {
+        this.nombre = nombre;
+        this.valor = valor;
+    }
+
+}
+
+
+
+
+
+
+
+//Mascota
+class Mascota
+{
+    private int codigo;
+    private string nombre;
+    private int especie;
+    private int sexo;
+    private DateTime fechaNacimiento;
+    public int Codigo
+    {
+        get { return codigo; }
+        set { codigo = value; }
+    }
+    public string Nombre
+    {
+        get { return nombre; }
+        set { nombre = value; }
+    }
+    public int Especie
+    {
+        get { return especie; }
+        set { especie = value; }
+    }
+    public int Sexo
+    {
+        get { return sexo; }
+        set { sexo = value; }
+    }
+    public DateTime FechaNacimiento
+    {
+        get { return fechaNacimiento; }
+        set { fechaNacimiento = value; }
+    }
+    public Mascota()
+    {
+        this.codigo = 0;
+        this.nombre = "";
+        this.especie = 0;
+        this.sexo = 0;
+        this.fechaNacimiento = DateTime.Today;
+    }
+    public Mascota(int codigo,string nombre,int especie,int sexo,DateTime fechaNacimiento)
+    {
+        this.codigo = codigo;
+        this.nombre = nombre;
+        this.especie = especie;
+        this.sexo = sexo;
+        this.fechaNacimiento = fechaNacimiento;
+    }
+    public override string ToString()
+    {
+        return codigo + " - " + nombre;
+    }
+}
+
+
+
+
+
+
+
+
+//Especie
+public class Especie
+{
+    public int Codigo { get; set; }
+    public string Nombre { get; set; }
+}
+
+
+
+
+
+
+
+
+//FrmMascota
+public partial class FrmMascota : Form
+{
+    AccesoDatos oBD;
+    public FrmMascota()
+    {
+        oBD = new AccesoDatos();                               //1
+        InitializeComponent();
+    }
+
+    private void FrmMascota_Load(object sender, EventArgs e)
+    {
+        cargarCombo(cboEspecie,"Especies");                                              //3
+    }
+
+    private void cargarCombo(ComboBox combo, string nombreTabla)
+    {
+        DataTable tabla = oBD.ConsultarTabla(nombreTabla);
+        combo.DataSource = tabla;
+        combo.ValueMember = tabla.Columns[0].ColumnName;
+        combo.DisplayMember = tabla.Columns[1].ColumnName;                               //2
+        combo.DropDownStyle = ComboBoxStyle.DropDownList;
+        combo.SelectedIndex = -1;
+    }
+
+    private void btnConsultar_Click(object sender, EventArgs e)
+    {
+        string consultaSql = "select m.codigo, m.nombre, e.nombreEspecie from Mascotas m, Especies e where m.especie=e.idEspecie ";
+        if (!chkTodos.Checked)
+        {
+            if(cboEspecie.SelectedIndex != -1)
+            {
+                consultaSql += "and m.especie=" + cboEspecie.SelectedValue;
+            }
+            if(rbtHembra.Checked)
+            {
+                consultaSql += "and m.sexo=2";
+            }
+            if (rbtMacho.Checked)
+            {
+                consultaSql += "and m.sexo=1";
+            }
+        }
+        cargarGrilla(consultaSql);
+    } 
+
+    private void cargarGrilla(string consultaSql)
+    {
+        DataTable tabla = oBD.ConsultarBD(consultaSql);
+        dgvMascotas.Rows.Clear();
+        foreach (DataRow row in tabla.Rows)
+        {
+            dgvMascotas.Rows.Add(row[0], row[1], row[2]);
+        }
+    }
+    //private void CargarLista(string nombreTabla)
+    //{
+    //    DataTable tabla = oBD.ConsultarTabla(nombreTabla);
+    //    lstCandidatos.Items.Clear();
+    //    foreach (DataRow fila in tabla.Rows)
+    //    {
+    //        string itemText = fila[0].ToString() + " " + fila[1].ToString();
+    //        lstCandidatos.Items.Add(itemText);
+    //    }
+    //}
+
+    private void chkTodos_CheckedChanged(object sender, EventArgs e)
+    {
+        cboEspecie.Enabled = !chkTodos.Checked;
+        rbtHembra.Enabled = !chkTodos.Checked;
+        rbtMacho.Enabled = !chkTodos.Checked;
+    }
+
+    private void btnNuevo_Click(object sender, EventArgs e)
+    {
+        //int codigo = (int)dgvMascotas.CurrentRow.Cells[0].Value;
+        FrmDetalle fd = new FrmDetalle(FrmDetalle.Modo.Create,0);
+        fd.ShowDialog();
+    }
+}
+
+
+
+
+
+//FrmDetalle
+public partial class FrmDetalle : Form
+{
+    AccesoDatos oBD = new AccesoDatos();
+    Modo modo;
+    int pk = 0;
+    Mascota m = null;
+    List<Parametro> lstParametros = new List<Parametro>();
+    public enum Modo
+    {
+        Create,
+        Read,
+        Update,
+        Delete,
+    }
+    public FrmDetalle()
+    {
+        InitializeComponent();
+    }
+    public FrmDetalle(Modo modo, int codigo)
+    {
+        InitializeComponent();
+        this.modo = modo;
+        this.pk = codigo;
+    }
+
+    private void FrmDetalle_Load(object sender, EventArgs e)
+    {
+        cargarCombo(cboEspecie, "Especies");
+        switch(modo)
+        {
+            case Modo.Create:
+            break;
+            case Modo.Read:
+                cargarCampos(pk);
+            break;
+            case Modo.Update:
+                cargarCampos(pk);
+            break;
+            case Modo.Delete:
+                cargarCampos(pk);
+            break;
+        }
+    }
+
+    private void cargarCampos(int pk)
+    {
+        DataTable tabla = oBD.ConsultarBD("select * from Mascotas where codigo=" + pk);
+        m = new Mascota();
+        m.Codigo = (int)tabla.Rows[0]["codigo"];
+        m.Nombre = tabla.Rows[0]["nombre"].ToString();
+        m.Especie = (int) tabla.Rows[0]["especie"];
+        m.Sexo = (int)tabla.Rows[0]["sexo"];
+        m.FechaNacimiento = (DateTime)tabla.Rows[0]["fechaNacimiento"];
+    }
+
+    private void cargarCombo(ComboBox combo, string nombreTabla)
+    {
+        DataTable tabla = oBD.ConsultarTabla(nombreTabla);
+        combo.DataSource = tabla;
+        combo.ValueMember = tabla.Columns[0].ColumnName;
+        combo.DisplayMember = tabla.Columns[1].ColumnName;                               //2
+        combo.DropDownStyle = ComboBoxStyle.DropDownList;
+        combo.SelectedIndex = -1;
+    }
+
+    private void btnAceptar_Click(object sender, EventArgs e)
+    {
+        string consultaSQL = string.Empty;
+        switch (modo)
+        {
+            case Modo.Create:
+                //ValidarDatosDePantalla();
+                //ValidarQueNoExista(txtCodigo.Text);
+                //Crear Objeto
+                m = new Mascota();
+                //CargarObjeto
+                CargarMascota();
+                consultaSQL = "INSERT INTO Mascotas (codigo,nombre,especie,sexo,fechaNacimiento) VALUES (" +
+                              "@codigo,@nombre,@especie,@sexo,@fechaNacimiento)";
+                lstParametros.Clear();
+                lstParametros.Add(new Parametro("@nombre", m.Nombre));
+                lstParametros.Add(new Parametro("@codigo", m.Codigo));
+                lstParametros.Add(new Parametro("@especie", m.Especie));
+                lstParametros.Add(new Parametro("@sexo", m.Sexo));
+                lstParametros.Add(new Parametro("@fechaNacimiento", m.FechaNacimiento));
+                if (oBD.ActualizarBD(consultaSQL, lstParametros) > 0)
+                    MessageBox.Show("Se actualizó con éxito la BD!!!");
+                else
+                    MessageBox.Show("No se pudo actualizar la BD!!!");
+                break;
+
+        }
+    }
+
+    private void CargarMascota()
+    {
+        m.Codigo = Convert.ToInt32(txtCodigo.Text);
+        m.Nombre = txtNombre.Text;
+        if (rbtMacho.Checked)
+            m.Sexo = 1;
+        else
+            m.Sexo = 2;
+        m.Especie = cboEspecie.SelectedIndex;
+        m.FechaNacimiento = dtpFechaNacimiento.Value;
+    }
+}
