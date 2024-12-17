@@ -1,0 +1,448 @@
+//AccesoDatos
+public class AccesoDatos
+{
+    private string CadenaConexion = @"Data Source=172.16.10.196;Initial Catalog=Informatica;User ID=alumno1w1;Password=alumno1w1";
+    private SqlConnection conexion;
+    private SqlCommand comando;
+    private SqlDataReader lector;
+    public AccesoDatos() 
+    {
+        conexion = new SqlConnection(CadenaConexion);
+    }
+    private void Conectar()
+    { 
+        conexion.Open();
+        comando=new SqlCommand();
+        comando.Connection = conexion;
+        comando.CommandType= CommandType.Text;  
+    }
+    public void Desconectar()
+    {
+        conexion.Close();
+    }
+    public DataTable ConsultarTabla(string nombreTabla)
+    {
+        DataTable tabla = new DataTable();
+        this.Conectar();
+        comando.CommandText = "SELECT * FROM " + nombreTabla;
+        tabla.Load(comando.ExecuteReader());
+        this.Desconectar();
+        return tabla;
+    }
+    public DataTable ConsultarBD(string consultaSQL)
+    {
+        DataTable tabla = new DataTable();
+        this.Conectar();
+        comando.CommandText = consultaSQL;
+        tabla.Load(comando.ExecuteReader());
+        this.Desconectar();
+        return tabla;
+    }
+    public int ActualizarBD(string consultaSQL)
+    {
+        int filasAfectadas = 0;
+        this.Conectar();
+        comando.CommandText = consultaSQL;
+        filasAfectadas = comando.ExecuteNonQuery();
+        this.Desconectar();
+        return filasAfectadas;
+    }
+    public int ActualizarBD(string consultaSQL,List<Parametro> lista)
+    {
+        int filasAfectadas = 0;
+        this.Conectar();
+        comando.CommandText = consultaSQL;
+        foreach (Parametro p in lista)
+        {
+            comando.Parameters.AddWithValue(p.Nombre, p.Valor);
+        }
+        filasAfectadas = comando.ExecuteNonQuery();
+        this.Desconectar();
+        return filasAfectadas;
+    }
+}
+
+
+
+
+
+
+
+//Parametro
+public class Parametro
+{
+	private string nombre;
+	public string Nombre
+	{
+		get { return nombre; }
+		set { nombre = value; }
+	}
+	private Object valor;
+	public Object Valor
+	{
+		get { return valor; }
+		set { valor = value; }
+	}
+	public Parametro(string nombre, Object valor)
+	{
+		this.nombre= nombre;
+		this.valor = valor;
+	}
+}
+
+
+
+
+
+
+//Producto
+public class Producto
+{
+    private int codigo;
+    private string nombre;
+    private double precio;
+    private int tipo;
+    private int marca;
+    private DateTime fecha;
+
+    public int Codigo
+    {
+        get { return codigo; }
+        set { codigo = value; }
+    }
+    public string Nombre
+    {
+        get { return nombre; }
+        set { nombre = value; }
+    }
+    public double Precio
+    {
+        get { return precio; }
+        set { precio = value; }
+    }
+    public int Tipo
+    {
+        get { return tipo; }
+        set { tipo = value; }
+    }
+    public int Marca
+    {
+        get { return marca; }
+        set { marca = value; }
+    }
+    public DateTime Fecha
+    {
+        get { return fecha; }
+        set { fecha = value; }
+    }
+
+    override public string ToString()
+    {
+        return codigo + " - " + nombre;
+    }
+  
+}
+
+
+
+
+
+
+//FrmProducto
+public partial class FrmProducto : Form
+{
+    AccesoDatos oBD;
+    public FrmProducto()
+    {
+        InitializeComponent();
+        oBD= new AccesoDatos();
+    }
+
+    private void FrmProducto_Load(object sender, EventArgs e)
+    {
+        CargarCombo(CboMarca,"Marcas");
+    }
+    private void CargarCombo(ComboBox combo, string nombreTabla)
+    {
+        DataTable tabla=oBD.ConsultarTabla(nombreTabla);
+        combo.DataSource=tabla;
+        combo.ValueMember = tabla.Columns[0].ColumnName;
+        combo.DisplayMember = tabla.Columns[1].ColumnName;
+        combo.DropDownStyle = ComboBoxStyle.DropDownList;
+        combo.SelectedIndex = -1;
+    }
+
+    private void ChkTodos_CheckedChanged(object sender, EventArgs e)
+    {
+        TxtNombre.Enabled = !ChkTodos.Checked;
+        CboMarca.Enabled = !ChkTodos.Checked;
+        //if (ChkTodos.Checked) 
+        //{
+        //    TxtNombre.Enabled= false;
+        //    CboMarca.Enabled=false;
+        //}
+        //else
+        //{
+        //    TxtNombre.Enabled= true;
+        //    CboMarca.Enabled=true;
+        //}
+    }
+
+    private void BtnConsultar_Click(object sender, EventArgs e)
+    {
+        //DgvProductos.DataSource = oBD.ConsultarTabla("Productos");
+
+        string consultaSQL = "SELECT p.codigo,p.nombre,m.nombreMarca"
+                               + " FROM Productos p, Marcas m"
+                               + " WHERE p.marca=m.idMarca";
+        if (!ChkTodos.Checked)
+        { 
+            if (!string.IsNullOrEmpty(TxtNombre.Text))
+            {
+                consultaSQL += " AND p.nombre LIKE '%" + TxtNombre.Text + "%'";
+            }
+            if (CboMarca.SelectedIndex!=-1)
+            {
+                consultaSQL += " AND m.idMarca=" + CboMarca.SelectedValue;
+            }
+        }
+        CargarGrilla(consultaSQL);
+    }
+    private void CargarGrilla(string consultaSQL)
+    {
+        DataTable tabla = oBD.ConsultarBD(consultaSQL);
+        DgvProductos.Rows.Clear();
+        foreach (DataRow fila in tabla.Rows)
+        {
+            DgvProductos.Rows.Add(fila[0],fila[1],fila["nombreMarca"]);
+        }
+    }
+
+    private void BtnDetalle_Click(object sender, EventArgs e)
+    {
+        int cod = (int)DgvProductos.CurrentRow.Cells[0].Value;
+        FrmDetalle fd=new FrmDetalle(Modo.Read,cod);
+        fd.ShowDialog();
+    }
+
+    private void BtnNuevo_Click(object sender, EventArgs e)
+    {
+        FrmDetalle fd = new FrmDetalle(Modo.Create,0);
+        fd.ShowDialog();
+    }
+
+    private void BtnEditar_Click(object sender, EventArgs e)
+    {
+        int cod = (int)DgvProductos.CurrentRow.Cells[0].Value;
+        FrmDetalle fd = new FrmDetalle(Modo.Update,cod);
+        fd.ShowDialog();
+    }
+
+    private void BtnBorrar_Click(object sender, EventArgs e)
+    {
+        int cod = (int)DgvProductos.CurrentRow.Cells[0].Value;
+        FrmDetalle fb = new FrmDetalle(Modo.Delete, cod);
+        fb.ShowDialog();
+    }
+
+    private void BtnSalir_Click(object sender, EventArgs e)
+    {
+        this.Close();
+    }
+
+    private void FrmProducto_FormClosing(object sender, FormClosingEventArgs e)
+    {
+        if (MessageBox.Show("Está seguro de abandonar la aplicación...",
+                            "CERRANDO",
+                            MessageBoxButtons.YesNo,
+                            MessageBoxIcon.Question,
+                            MessageBoxDefaultButton.Button2)
+            == DialogResult.Yes)
+            e.Cancel= false;
+        else
+            e.Cancel= true;
+    }
+}
+
+
+
+
+
+//FrmDetalle
+public enum Modo
+{
+    Create,
+    Read,
+    Update,
+    Delete
+}
+public partial class FrmDetalle : Form
+{
+    AccesoDatos oBD = new AccesoDatos();
+    Modo modo;
+    int pk = 0;
+    Producto p = null;
+    List<Parametro> lstParametros = new List<Parametro>();
+    public FrmDetalle()
+    {
+        InitializeComponent();
+    }
+    public FrmDetalle(Modo accion, int codigoSeleccionado)
+    {
+        InitializeComponent();
+        this.modo = accion;
+        this.pk = codigoSeleccionado;
+    }
+
+    private void FrmDetalle_Load(object sender, EventArgs e)
+    {
+        CargarCombo(cboMarca, "Marcas");
+        switch (modo)
+        {
+            case Modo.Create:
+                this.Text = "Nuevo producto";
+                grbDetalles.Enabled = true;
+                //LimpiarCampos();
+                txtCodigo.Focus();
+                break;
+            case Modo.Read:
+                grbDetalles.Enabled = false;
+                CargarCampos(pk);
+                break;
+            case Modo.Update:
+                this.Text = "Editar producto";
+                grbDetalles.Enabled = true;
+                txtCodigo.Enabled = false;
+                CargarCampos(pk);
+                break;
+            case Modo.Delete:
+                this.Text = "Borrar producto";
+                grbDetalles.Enabled = false;
+                CargarCampos(pk);
+                break;
+        }
+    }
+    private void CargarCombo(ComboBox combo, string nombreTabla)
+    {
+        DataTable tabla = oBD.ConsultarTabla(nombreTabla);
+        combo.DataSource = tabla;
+        combo.ValueMember = tabla.Columns[0].ColumnName;
+        combo.DisplayMember = tabla.Columns[1].ColumnName;
+        combo.DropDownStyle = ComboBoxStyle.DropDownList;
+        combo.SelectedIndex = -1;
+    }
+    private void CargarCampos(int pk)
+    {
+        DataTable tabla = oBD.ConsultarBD("SELECT * FROM Productos WHERE codigo=" + pk);
+        //Mapeo del objeto
+        p = new Producto();
+        p.Codigo = (int)tabla.Rows[0][0];
+        p.Nombre = tabla.Rows[0][1].ToString();
+        p.Tipo = (int)tabla.Rows[0][2];
+        p.Marca = (int)tabla.Rows[0][3];
+        p.Precio = (double)tabla.Rows[0][4];
+        p.Fecha = (DateTime)tabla.Rows[0][5];
+
+        txtCodigo.Text = p.Codigo.ToString();
+        txtNombre.Text = p.Nombre;
+        cboMarca.SelectedValue = p.Marca;
+        if (p.Tipo == 1)
+            rbtNoteBook.Checked = true;
+        else
+            rbtNetBook.Checked = true;
+        txtPrecio.Text = p.Precio.ToString();
+        dtpFecha.Value = p.Fecha;
+    }
+
+    private void btnCancelar_Click(object sender, EventArgs e)
+    {
+        this.Close();
+    }
+
+    private void btnAceptar_Click(object sender, EventArgs e)
+    {
+        string consultaSQL = "";
+
+        switch (modo)
+        {
+            case Modo.Create:
+                //ValidarDatosDePantalla();
+                //ValidarQueNoExista(txtCodigo.Text);
+                //Crear Objeto
+                p = new Producto();
+                //CargarObjeto
+                CargarProducto();
+                consultaSQL = "INSERT INTO Productos (nombre,tipo,marca,precio,fecha) VALUES (" +
+                              "@nombre,@tipo,@marca,@precio,@fecha)";
+                lstParametros.Clear();
+                lstParametros.Add(new Parametro("@nombre", p.Nombre));
+                lstParametros.Add(new Parametro("@tipo", p.Tipo));
+                lstParametros.Add(new Parametro("@marca", p.Marca));
+                lstParametros.Add(new Parametro("@precio", p.Precio));
+                lstParametros.Add(new Parametro("@fecha", p.Fecha));
+                if (oBD.ActualizarBD(consultaSQL, lstParametros) > 0)
+                    MessageBox.Show("Se actualizó con éxito la BD!!!");
+                else
+                    MessageBox.Show("No se pudo actualizar la BD!!!");
+                break;
+            case Modo.Update:
+                //ValidarDatosDePantalla();
+                //CargarObjeto
+                CargarProducto();
+                consultaSQL = "UPDATE Productos SET " +
+                              "nombre=@nombre," +
+                              "tipo=@tipo," +
+                              "marca=@marca," +
+                              "precio=@precio," +
+                              "fecha=@fecha " +
+                              "WHERE codigo=@codigo";
+                lstParametros.Clear();
+                lstParametros.Add(new Parametro("@codigo", p.Codigo));
+                lstParametros.Add(new Parametro("@nombre", p.Nombre));
+                lstParametros.Add(new Parametro("@tipo", p.Tipo));
+                lstParametros.Add(new Parametro("@marca", p.Marca));
+                lstParametros.Add(new Parametro("@precio", p.Precio));
+                lstParametros.Add(new Parametro("@fecha", p.Fecha));
+                if (oBD.ActualizarBD(consultaSQL, lstParametros) > 0)
+                    MessageBox.Show("Se actualizó con éxito la BD!!!");
+                else
+                    MessageBox.Show("No se pudo actualizar la BD!!!");
+                break;
+            case Modo.Delete:
+                if (MessageBox.Show("Está seguro de eliminar este producto?",
+                                    "ELIMINANDO",
+                                    MessageBoxButtons.YesNo,
+                                    MessageBoxIcon.Warning,
+                                    MessageBoxDefaultButton.Button2)
+                    == DialogResult.Yes)
+                {
+                    consultaSQL = "DELETE FROM Productos " +
+                                  "WHERE codigo=@codigo";
+                    lstParametros.Clear();
+                    lstParametros.Add(new Parametro("@codigo", p.Codigo));
+                    if (oBD.ActualizarBD(consultaSQL, lstParametros) > 0)
+                        MessageBox.Show("Se actualizó con éxito la BD!!!");
+                    else
+                        MessageBox.Show("No se pudo actualizar la BD!!!");
+                }
+                break;
+        }
+        
+        this.Close();
+    }
+
+    private void CargarProducto()
+    {
+        p.Codigo=Convert.ToInt32(txtCodigo.Text);
+        p.Nombre=txtNombre.Text;
+        if (rbtNoteBook.Checked)
+            p.Tipo = 1;
+        else
+            p.Tipo = 2;
+        p.Marca = (int)cboMarca.SelectedValue;
+        p.Precio=Convert.ToDouble(txtPrecio.Text);
+        p.Fecha = dtpFecha.Value;
+    }
+}
+
+
