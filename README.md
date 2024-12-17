@@ -1,6 +1,7 @@
 //AccesoDatos
 public class AccesoDatos
 {
+
     private string CadenaConexion = "Data Source=172.16.10.196;Initial Catalog=DGR;User ID=alumno1w1;Password=alumno1w1"; // Properties.Resources.CadenaConexionLocal;
     private SqlConnection conexion;
     private SqlCommand comando;
@@ -86,6 +87,7 @@ public class AccesoDatos
 //Parametro
 public class Parametro
 {
+
     private string nombre;
     private object valor;
     public string Nombre
@@ -261,6 +263,7 @@ public class Servicio
 //FrmInmuebles
 public partial class FrmInmuebles : Form
 {
+
     private Servicio _servicio = new Servicio();
     private int codigo;
     public FrmInmuebles()
@@ -465,6 +468,7 @@ public partial class FrmInmuebles : Form
 //Inmueble
 public class Inmueble
  {
+ 
      public int IdInmueble { get; set; }
      public string Titular { get; set; }
      public int Nomenclatura { get; set; }
